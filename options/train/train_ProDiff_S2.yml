@@ -1,0 +1,170 @@
+# general settings
+name: stagetwo
+model_type: ProDiff_S2
+scale: 4
+num_gpu: auto
+manual_seed: 0
+
+# dataset and data loader settings
+datasets:
+  train:
+    name: DF2K
+    type: DSF_DF2K_Dataset
+    dataroot_gt: ~
+    io_backend:
+      type: disk
+
+    patch_size: 48
+    use_hflip: true
+    use_rot: true
+
+    # data loader
+    use_shuffle: true
+    num_worker_per_gpu: 6
+    batch_size_per_gpu: 16
+    dataset_enlarge_ratio: 20
+    prefetch_mode: ~
+
+  val_1:
+    name: DIV2K_valid_x4
+    type: DSF_val_Dataset
+    dataroot_gt: ~
+    dataroot_lq: ~
+    io_backend:
+      type: disk
+
+
+# network structures
+network_g:
+  type: Transformer
+  upscale: 3
+  in_chans: 3
+  img_size: 64
+  window_size: 16
+  compress_ratio: 3
+  squeeze_factor: 30
+  conv_scale: 0.01
+  overlap_ratio: 0.5
+  img_range: 1.
+  depths: [5, 5, 5, 5]
+  embed_dim: 90
+  num_heads: [6, 6, 6, 6]
+  mlp_ratio: 2
+  upsampler: 'pixelshuffle'
+  resi_connection: '1conv'
+
+network_le:
+  type: latent_encoder_gelu
+  in_chans: 6
+  embed_dim: 90 # same as above
+  block_num: 6
+  group: 4 # same as above
+  stage: 1
+  patch_expansion: 0.5
+  channel_expansion: 4
+
+network_le_dm: #condition encoder
+  type: latent_encoder_gelu
+  in_chans: 3
+  embed_dim: 90 # same as above
+  block_num: 6
+  group: 4 # same as above
+  stage: 2
+  patch_expansion: 0.5
+  channel_expansion: 4
+
+network_d:
+  type: denoising
+  in_channel: 360 # (embed_dim*4)
+  out_channel: 360 # (embed_dim*4)
+  inner_channel: 512
+  block_num: 4
+  group: 4 # same as above
+  patch_expansion: 0.5
+  channel_expansion: 2
+
+diffusion_schedule:
+  apply_ldm: False
+  schedule: linear
+  timesteps: 8
+  linear_start: 0.1 # 1e-6
+  linear_end: 0.99 # 1e-2
+
+# path
+path:
+  pretrain_network_g: experiments/stageone/models/net_g_**.pth
+  param_key_g: params
+  strict_load_g: true
+
+  pretrain_network_le: experiments/stageone/models/net_le_**.pth
+  param_key_g: params
+  strict_load_le: true
+
+  pretrain_network_le_dm: ~
+  param_key_g: params
+  strict_load_le_dm: true
+
+  pretrain_network_d: ~
+  param_key_g: params
+  strict_load_d: true
+
+  resume_state: ~
+
+# training settings
+train:
+  total_iter: 1000000
+  warmup_iter: -1 # no warm up
+  use_grad_clip: True
+
+  scheduler:
+    type: CosineAnnealingRestartCyclicLR
+    periods: [400000, 800000]       
+    restart_weights: [1,1]
+    eta_mins: [0.0002,0.000001]
+  
+  mixing_augs:
+    mixup: false
+    mixup_beta: 1.2
+    use_identity: true
+
+  optim_total:
+    type: AdamW
+    lr: !!float 2e-4
+    weight_decay: !!float 1e-4
+    betas: [0.9, 0.999]
+  
+  # losses
+  pixel_opt:
+    type: L1Loss
+    loss_weight: 1.0
+    reduction: mean
+
+  pixel_diff_opt:
+    type: L1Loss
+    loss_weight: 1.0
+    reduction: mean
+
+# validation settings
+val:
+  val_freq: !!float 4e3
+  save_img: false
+
+  metrics:
+    psnr: # metric name, can be arbitrary
+      type: calculate_psnr
+      crop_border: 0
+      test_y_channel: false
+
+# logging settings
+logger:
+  print_freq: 1000
+  save_checkpoint_freq: !!float 4e3
+  use_tb_logger: true
+  wandb:
+    project: ~
+    resume_id: ~
+
+# dist training settings
+dist_params:
+  backend: nccl
+  port: 29500

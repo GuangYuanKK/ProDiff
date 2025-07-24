@@ -1,0 +1,124 @@
+name: task_name
+model_type: HATModel
+scale: 8
+num_gpu: 1  # set num_gpu: 0 for cpu mode
+manual_seed: 0
+
+datasets:
+  test_1:  # the 1st test dataset
+    name: Set5
+    type: DSF_val_downsample_Dataset
+    dataroot_gt: dataset/benchmark/Set5/HR
+    # dataroot_lq: dataset/benchmark/Set5/LR_bicubic/X2
+    io_backend:
+      type: disk
+
+  test_2:  # the 2nd test dataset
+    name: Set14
+    type: DSF_val_downsample_Dataset
+    dataroot_gt: dataset/benchmark/Set14/HR
+    # dataroot_lq: dataset/benchmark/Set14/LR_bicubic/X2
+    io_backend:
+      type: disk
+
+  test_3:
+    name: Urban100
+    type: DSF_val_downsample_Dataset
+    dataroot_gt: dataset/benchmark/Urban100/HR
+    # dataroot_lq: dataset/benchmark/Urban100/LR_bicubic/X2
+    io_backend:
+      type: disk
+
+  test_4:
+     name: B100
+     type: DSF_val_downsample_Dataset
+     dataroot_gt: dataset/benchmark/B100/HR
+     # dataroot_lq: dataset/benchmark/B100/LR_bicubic/X2
+     io_backend:
+       type: disk
+
+  test_5:
+      name: Manga109
+      type: DSF_val_downsample_Dataset
+      dataroot_gt: datasets/benchmark/Manga109/HR
+      # dataroot_lq: ./datasets/manga109/LRbicx4
+      io_backend:
+        type: disk
+
+# network structures
+network_g:
+  type: Transformer
+  upscale: 3
+  in_chans: 3
+  img_size: 64
+  window_size: 16
+  compress_ratio: 3
+  squeeze_factor: 30
+  conv_scale: 0.01
+  overlap_ratio: 0.5
+  img_range: 1.
+  depths: [5, 5, 5, 5]
+  embed_dim: 90
+  num_heads: [6, 6, 6, 6]
+  mlp_ratio: 2
+  upsampler: 'pixelshuffle'
+  resi_connection: '1conv'
+
+network_le:
+  type: latent_encoder_gelu
+  in_chans: 6
+  embed_dim: 90 # same as above
+  block_num: 3
+  group: 4 # same as above
+  stage: 1
+  patch_expansion: 0.5
+  channel_expansion: 4
+
+network_le_dm:
+  type: latent_encoder_gelu
+  in_chans: 3
+  embed_dim: 90 # same as above
+  block_num: 6
+  group: 4 # same as above
+  stage: 2
+  patch_expansion: 0.5
+  channel_expansion: 4
+
+network_d:
+  type: denoising
+  in_channel: 360 # (embed_dim*4)
+  out_channel: 360 # (embed_dim*4)
+  inner_channel: 512
+  block_num: 4
+  group: 4 # same as above
+  patch_expansion: 0.5
+  channel_expansion: 2
+
+diffusion_schedule:
+  apply_ldm: False
+  schedule: linear
+  timesteps: 8
+  linear_start: 0.1 # 1e-6
+  linear_end: 0.99 # 1e-2
+
+# path
+path:
+  pretrain_network_g: experiments/stagetwo/models/net_g_**.pth
+  param_key_g: params
+  strict_load_g: true
+
+  pretrain_network_le_dm: experiments/stagetwo/models/net_le_dm_**.pth
+  param_key_g: params
+  strict_load_le_dm: true
+
+  pretrain_network_d: experiments/stagetwo/models/net_d_**.pth
+  param_key_g: params
+  strict_load_d: true
+
+  resume_state: ~
+    
+# validation settings
+val:
+  save_img: True
+  suffix: ''
+  selfensemble_testing: False

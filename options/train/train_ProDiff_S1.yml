@@ -1,0 +1,127 @@
+# general settings
+name: stageone
+model_type: ProDiff_S1
+scale: 4
+num_gpu: auto
+manual_seed: 0
+
+# dataset and data loader settings
+datasets:
+  train:
+    name: DF2K
+    type: DSF_DF2K_Dataset
+    dataroot_gt: ~
+    io_backend:
+      type: disk
+
+    patch_size: 48
+    use_hflip: true
+    use_rot: true
+
+    # data loader
+    use_shuffle: true
+    num_worker_per_gpu: 6
+    batch_size_per_gpu: 16
+    dataset_enlarge_ratio: 20
+    prefetch_mode: ~
+
+  val_1:
+    name: DIV2K_valid_x4
+    type: DSF_val_Dataset
+    dataroot_gt: ~
+    dataroot_lq: ~
+    io_backend:
+      type: disk
+
+
+# network structures
+network_g:
+  type: Transformer
+  upscale: 3
+  in_chans: 3
+  img_size: 64
+  window_size: 16
+  compress_ratio: 3
+  squeeze_factor: 30
+  conv_scale: 0.01
+  overlap_ratio: 0.5
+  img_range: 1.
+  depths: [5, 5, 5, 5]
+  embed_dim: 90
+  num_heads: [6, 6, 6, 6]
+  mlp_ratio: 2
+  upsampler: 'pixelshuffle'
+  resi_connection: '1conv'
+
+network_le:
+  type: latent_encoder_gelu
+  in_chans: 6
+  embed_dim: 90 # same as above
+  block_num: 6
+  group: 4 # same as above
+  stage: 1
+  patch_expansion: 0.5
+  channel_expansion: 4
+
+# path
+path:
+  pretrain_network_g: ~ 
+  # param_key_g: 'params_ema'
+  strict_load_g: true
+  resume_state: ~
+
+# training settings
+train:
+  ema_decay: 0.999
+  use_grad_clip: true
+  optim_g:
+    type: Adam
+    lr: !!float 2e-4
+    weight_decay: 0
+    betas: [0.9, 0.99]
+
+  scheduler:
+    type: MultiStepLR
+    milestones: [500000, 800000, 900000, 950000]
+    gamma: 0.5
+
+  total_iter: 1000000
+  warmup_iter: -1  # no warm up
+
+  # losses
+  pixel_opt:
+    type: L1Loss
+    loss_weight: 1.0
+    reduction: mean
+
+# validation settings
+val:
+  val_freq: !!float 5e3
+  save_img: true
+  pbar: False
+
+  metrics:
+    psnr:
+      type: calculate_psnr
+      crop_border: 3
+      test_y_channel: true
+      better: higher  # the higher, the better. Default: higher
+    ssim:
+      type: calculate_ssim
+      crop_border: 3
+      test_y_channel: true
+      better: higher  # the higher, the better. Default: higher
+
+# logging settings
+logger:
+  print_freq: 1000
+  save_checkpoint_freq: !!float 4e3
+  use_tb_logger: true
+  wandb:
+    project: ~
+    resume_id: ~
+
+# dist training settings
+dist_params:
+  backend: nccl
+  port: 29500
