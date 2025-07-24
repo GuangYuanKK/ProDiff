@@ -34,7 +34,7 @@ CUDA_VISIBLE_DEVICES=0 python train.py -opt options/train/train_ProDiff_S2.yml
 ## Test
 Modify the dataset path and pre-trained model path in options/test/test*.xml, and run the following command to test.
 ```
-CUDA_VISIBLE_DEVICES=0 python test.py -opt options/test_ours/test_ArSR.yml
+CUDA_VISIBLE_DEVICES=0 python test.py -opt options/test_ours/test*.yml
 ```
 
 ### Pretrained Models
